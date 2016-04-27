@@ -5,30 +5,33 @@
 //#include <LiquidCrystal.h>
 //#include <Servo.h>
 //#include <EEPROM.h>
-//#include <EEWrap.h>
 //#include <Wire.h>
 //#include <TimeLib.h>
 //#include <Time.h>
-//#include <DigitalTime.h>
 //#include <DS3232RTC.h>
 //#include <MemoryFree.h>
+
 #include <SimpleTimer.h> //events
-
-
 
 #include <StandardCplusplus.h>
 #include <vector>
 using namespace std;
 
 //**EAL-Includes
+#include <SerialExt.h>
+//#include <DigitalTime.h>
+//#include <MemoryExt.h>
+#include <RTCExt.h>
 //#include <AnalogSwitch.h>
 //#include <RODoser.h>
-#include <LCDMenuController.h>
-#include <SerialExt.h>
-#include <RTCExt.h>
 //#include <LCDMenu.h>
+//#include <LCDMenuController.h>
+
+
 using namespace Utils;
-using namespace Controllers;
+
+//using namespace Models;
+//using namespace Time;
 
 
 //**LCD-BEGIN**
@@ -57,7 +60,7 @@ bool _timersEnabled = true;
 SimpleTimer _menuTimeoutTimer;
 SimpleTimer _selectPressTimer;
 
-LCDMenuController _lcdMenuController;
+//LCDMenuController _lcdMenuController;
 //**LCD-END**
 
 //**Doser-BEGIN**
@@ -66,20 +69,29 @@ LCDMenuController _lcdMenuController;
 //RODoser _doser;
 //**Doser-END**
 
+
 void setup() {
 
-	Serial.begin(9600);
+	Serial.begin(115200);
+	while (!Serial);
 	while (Serial.available() == 0 && millis() < 2000); // wait until Arduino Serial Monitor opens
 
-	//Serial.print(SERIAL_BUFFER_SIZE);
+	Serial.print(F("Buffer Size: "));
+	Serial.println(SERIAL_BUFFER_SIZE);
+	
+	RTCExt::Init();
+	//_lcdMenuController = LCDMenuController();
+	
+	TestLoadNRMem();
 
-	_lcdMenuController.Init();
+	return;
 
 	//Serial.println(F("a"));
 	//_doser = RODoser(_servo, _doserPin, 2, 22000, _floatSwitch);
 
-	_selectPressTimer.setInterval(500, IsSelectPressed);
-	_menuTimeoutTimer.setTimeout(200000, MenuTimeout);
+
+	//_selectPressTimer.setInterval(500, IsSelectPressed);
+	//_menuTimeoutTimer.setTimeout(200000, MenuTimeout);
 
 	//SerialExt::Debug(RTCExt::IsRTCTimeSet());
 	//RTCExt::SetRTCTime(9, 42, 0, 8, 4, 2016);
@@ -87,44 +99,103 @@ void setup() {
 	//	_lcdMenuController.SelectMainMenu();
 
 }
+static NextRunMemory _doseInfo;
+static NextRunMemory _feedInfo;
+void TestLoadNRMem(){
+	SerialExt::Debug("--Load_FeedInfo--");
+	int accType = static_cast<int>(AccessoryType::Feeder);
+	_feedInfo.AccType = accType;
+	_feedInfo = RTCExt::GetNextRunMem(_feedInfo);
+
+	SerialExt::Debug("--Load_DoseInfo--");
+	int accType2 = static_cast<int>(AccessoryType::DryDoser);
+	_doseInfo.AccType = accType2;
+	_doseInfo = RTCExt::GetNextRunMem(_doseInfo);
+}
+void TestNRMem(){
+
+	SerialExt::Debug("--FeedInfo--");
+	
+	int accType = static_cast<int>(AccessoryType::Feeder);
+	
+	_feedInfo.AccType = accType;
+	_feedInfo.CountDown = 1000L;
+	_feedInfo.LastRun = 2000L;
+	_feedInfo.NextRun = 3000L;
+	_feedInfo.RunEvery = 4000L;
+	_feedInfo.ShakesOrTurns = (short)5;
+	
+	_feedInfo = RTCExt::SaveNextRunMem(_feedInfo);
+	_feedInfo = RTCExt::GetNextRunMem(_feedInfo);
+
+	SerialExt::Debug("--DoseInfo--");
+
+	int accType2 = static_cast<int>(AccessoryType::DryDoser);
+
+	_doseInfo.AccType = accType2;
+	_doseInfo.CountDown = 6000L;
+	_doseInfo.LastRun = 7000L;
+	_doseInfo.NextRun = 8000L;
+	_doseInfo.RunEvery = 9000L;
+	_doseInfo.ShakesOrTurns = (short)8;
+
+	_doseInfo = RTCExt::SaveNextRunMem(_doseInfo);
+	_doseInfo = RTCExt::GetNextRunMem(_doseInfo);
+
+	SerialExt::Debug("--FeedInfo Update--");
+	_feedInfo.CountDown = 1500L;
+	_feedInfo = RTCExt::SaveNextRunMem(_feedInfo);
+	_feedInfo = RTCExt::GetNextRunMem(_feedInfo);
+
+	SerialExt::Debug("--DoseInfo Update--");
+	_doseInfo.CountDown = 6500L;
+	_doseInfo = RTCExt::SaveNextRunMem(_doseInfo);
+	_doseInfo = RTCExt::GetNextRunMem(_doseInfo);
+
+}
 
 void loop() {
-	if (_timersEnabled){
-		//_timer.run();
-		_selectPressTimer.run();
-	}
+	//if (_timersEnabled){
+	//	//_timer.run();
+	//	_selectPressTimer.run();
+	//}
 }
 
 
 void IsSelectPressed()
 {
 
-	int key = _lcdMenuController.GetKey();
-	SerialExt::Debug("key_isp", key);
+	//int key = _lcdMenuController.GetKey();
+	//SerialExt::Debug("key_isp", key);
 
-	if (key == 4){
-		_timersEnabled = false; //disable
-		_menuTimeoutTimer.run();
-		_lcdMenuController.SelectMainMenu();
-		_timersEnabled = true; //enable
+	//if (key == 4){
+	//	_timersEnabled = false; //disable
+	//	_menuTimeoutTimer.run();
+	//	_lcdMenuController.SelectMainMenu();
+	//	_timersEnabled = true; //enable
 
 
-	}
+	//}
 
-	_lcdMenuController.Scroll();
+	//_lcdMenuController.Scroll();
 }
 
 
 void MenuTimeout(){
-	SerialExt::Debug("Menu Timeout");
-	_lcdMenuController.ExitMainMenu();
+	/*SerialExt::Debug("Menu Timeout");
+	_lcdMenuController.ExitMainMenu();*/
 }
 
 void FeedFish(){
-	//long countDown = RTCExt::NextFeedInfo.CountDown;
-	long nextRun = RTCExt::NextFeedInfo.NextRun;
+	//_rtcController.SetLastRun(AccessoryType::Feeder);
 
-	RTCExt::NextFeedInfo.LastRun = RTCExt::GetRTCTime();
+	/*Mem:NextRunMemory mem = RTCExt::FindNextRunInfo(AccessoryType::Feeder);
+	
+	long countDown = mem.CountDown;
+	
+	long nextRun = mem.NextRun;
+
+	RTCExt::NextFeedInfo.LastRun = RTCExt::GetRTCTime();*/
 
 }
 
